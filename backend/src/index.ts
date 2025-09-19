@@ -4,14 +4,10 @@ import path from 'path';
 import dotenv from 'dotenv';
 import cors from "cors";
 
-
-
-
 app.use(cors());
 dotenv.config();
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
-
 
 
 // IMPORT ROUTES
@@ -27,17 +23,6 @@ app.use('/api/v1/purchase',purchaseRoutes);
 app.use('/api/v1/found',foundRoutes);
 
 
-
-
-
-
-
-
-
-
-
-
-
 // START SERVER AND DB
 function startServer() {
   app.listen(3000, () => {
@@ -45,11 +30,13 @@ function startServer() {
   });
 }
 
- async function startDB () {
+
+async function startDB () {
   const mongoose = require('mongoose');
   await mongoose.connect(process.env.DB_URL);
   console.log('Connected to MongoDB');
 }
+
 
 startServer();
 startDB();

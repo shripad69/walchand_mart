@@ -5,6 +5,7 @@ const config = {
     GET_OTP : "/api/v1/send-otp",
     SIGNUP: "/api/v1/signup",
     LOGIN: "/api/v1/signin",
+    GET_USER_INFO: "/api/v1/info",
 
 
     GET_ALL_PRODUCTS: "/api/v1/purchase/all",

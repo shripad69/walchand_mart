@@ -1,80 +1,151 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import axios from "axios"
-import { useNavigate } from "react-router-dom"
-import toast from "react-hot-toast"
-import config from "../../config"
-import { LogOut, User, Package, ShoppingBag, Trash2, HelpCircle } from "lucide-react"
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import config from "../../config";
+import { LogOut, User, Package, ShoppingBag, Trash2, HelpCircle, Phone, Calendar } from "lucide-react";
+
+const makeAvatarDataUrl = (name = "User") => {
+  const initials = name
+    ?.trim()
+    ?.split(/\s+/)
+    ?.map((n) => n[0])
+    ?.slice(0, 2)
+    ?.join("")
+    ?.toUpperCase() || "U";
+  const svg = `
+  <svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'>
+    <defs>
+      <linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
+        <stop offset='0%' stop-color='#8b5cf6'/>
+        <stop offset='100%' stop-color='#3b82f6'/>
+      </linearGradient>
+      <filter id='shadow' color-interpolation-filters='sRGB'>
+        <feDropShadow dx='0' dy='6' stdDeviation='8' flood-color='rgba(0,0,0,0.35)'/>
+      </filter>
+    </defs>
+    <rect rx='80' width='160' height='160' fill='url(#g)'/>
+    <text x='50%' y='54%' dominant-baseline='middle' text-anchor='middle'
+          font-size='64' font-family='Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, sans-serif'
+          fill='white' filter='url(#shadow)'>${initials}</text>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
 
 const AccountScreen = () => {
-  const [activeTab, setActiveTab] = useState("found")
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(false)
-  const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState("found");
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // NEW: user details
+  const [user, setUser] = useState(null);
+  const [userLoading, setUserLoading] = useState(true);
+
+  const navigate = useNavigate();
 
   // Check for token on component mount
   useEffect(() => {
-    const token = localStorage.getItem("token")
+    const token = localStorage.getItem("token");
     if (!token) {
-      toast.error("Invalid token or session expired")
-      navigate("/")
+      toast.error("Invalid token or session expired");
+      navigate("/");
     }
-  }, [])
+  }, []);
+
+  // NEW: Fetch user info
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        setUserLoading(true);
+        const token = localStorage.getItem("token");
+        if (!token) {
+          toast.error("Invalid token or session expired");
+          navigate("/");
+          return;
+        }
+
+        const infoEndpoint = `${config.BASE_URL}${config.GET_USER_INFO}`;
+
+        const res = await axios.get(infoEndpoint, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        setUser(res.data);
+      } catch (e) {
+        toast.error(e?.response?.data?.message || "Failed to fetch profile");
+      } finally {
+        setUserLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, []);
 
   // Handle logout
   const handleLogout = () => {
-    localStorage.removeItem("token")
-    toast.success("Logged out successfully")
-    navigate("/")
-  }
+    localStorage.removeItem("token");
+    toast.success("Logged out successfully");
+    navigate("/");
+  };
 
   // Fetch items based on active tab
   useEffect(() => {
     const fetchItems = async () => {
-      setLoading(true)
+      setLoading(true);
       try {
-        const token = localStorage.getItem("token")
+        const token = localStorage.getItem("token");
         if (!token) {
-          toast.error("Invalid token or session expired")
-          navigate("/")
-          return
+          toast.error("Invalid token or session expired");
+          navigate("/");
+          return;
         }
 
         const endpoint =
           activeTab === "found"
             ? `${config.BASE_URL}${config.GET_FOUND_BY_USER}`
-            : `${config.BASE_URL}${config.GET_PURCHASE_BY_USER}`
+            : `${config.BASE_URL}${config.GET_PURCHASE_BY_USER}`;
 
         const response = await axios.get(endpoint, {
           headers: { Authorization: `Bearer ${token}` },
-        })
+        });
 
-        setItems(response.data.data)
+        setItems(response.data.data);
       } catch (error) {
-        toast.error(error.response?.data?.message || "Failed to fetch items")
+        toast.error(error.response?.data?.message || "Failed to fetch items");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchItems()
-  }, [activeTab])
+    fetchItems();
+  }, [activeTab, navigate]);
+
+  // Helpers
+  const safeDate = (iso) => {
+    try {
+      if (!iso) return "";
+      return new Date(iso).toLocaleDateString();
+    } catch {
+      return "";
+    }
+  };
 
   // Handle item deletion
   const handleDelete = async (id) => {
     try {
-      const token = localStorage.getItem("token")
+      const token = localStorage.getItem("token");
       if (!token) {
-        toast.error("Invalid token or session expired")
-        navigate("/")
-        return
+        toast.error("Invalid token or session expired");
+        navigate("/");
+        return;
       }
 
       const endpoint =
         activeTab === "found"
           ? `${config.BASE_URL}${config.DELETE_FOUND_BY_ID}`
-          : `${config.BASE_URL}${config.DELETE_PURCHASE_BY_ID}`
+          : `${config.BASE_URL}${config.DELETE_PURCHASE_BY_ID}`;
 
       await toast.promise(
         axios.post(
@@ -87,16 +158,18 @@ const AccountScreen = () => {
         {
           loading: "Deleting item...",
           success: () => {
-            setItems(items.filter((item) => item._id !== id))
-            return "Item deleted successfully"
+            setItems((prev) => prev.filter((item) => item._id !== id));
+            return "Item deleted successfully";
           },
           error: (error) => error.response?.data?.message || "Failed to delete item",
         },
-      )
+      );
     } catch (error) {
-      console.error("Delete error:", error)
+      console.error("Delete error:", error);
     }
-  }
+  };
+
+  const avatarSrc = makeAvatarDataUrl(user?.name || "User");
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans relative overflow-hidden">
@@ -112,18 +185,48 @@ const AccountScreen = () => {
       <div className="absolute top-1/3 right-1/4 w-48 h-48 bg-purple-600/10 rounded-full blur-2xl animate-float-fast delay-1000"></div>
 
       <div className="relative z-10 p-8 max-w-7xl mx-auto">
-        {/* Header */}
+        {/* Profile Header */}
         <div className="mb-8 bg-gray-800/50 backdrop-blur-md border border-gray-700/50 p-6 rounded-2xl shadow-xl">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-violet-600 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
-                <User className="w-8 h-8 text-white" />
+            <div className="flex items-center gap-5">
+              {/* Animated Avatar */}
+              <div className="relative">
+                <div className="avatar-ring">
+                  <div className="avatar-cutout">
+                    <img
+                      src={avatarSrc}
+                      alt="Profile"
+                      className="h-20 w-20 rounded-full object-cover avatar-img"
+                    />
+                  </div>
+                </div>
+                <div className="avatar-glow"></div>
               </div>
+
+              {/* User details */}
               <div>
-                <h1 className="text-3xl font-bold text-white mb-2">My Account</h1>
-                <p className="text-gray-400">Manage your items and account settings</p>
+                <h1 className="text-3xl font-bold text-white mb-1">
+                  {userLoading ? "Loading..." : user?.name || "User"}
+                </h1>
+                <div className="text-gray-300">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2 text-sm text-gray-300">
+                      <User className="w-4 h-4 text-violet-300" />
+                      <span className="truncate max-w-[240px]">{userLoading ? "…" : user?.email}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-300">
+                      <Phone className="w-4 h-4 text-violet-300" />
+                      <span>{userLoading ? "…" : user?.phone}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-300">
+                      <Calendar className="w-4 h-4 text-violet-300" />
+                      <span>Joined {userLoading ? "…" : safeDate(user?.createdAt)}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
+
             <button
               onClick={handleLogout}
               className="flex items-center px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-600/30 hover:border-red-600/50 text-red-400 hover:text-red-300 font-medium rounded-xl transition-all duration-300 transform hover:scale-[1.02] active:scale-95"
@@ -292,9 +395,44 @@ const AccountScreen = () => {
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
         }
+        /* NEW: avatar ring + glow */
+        @keyframes spin-slower {
+          to { transform: rotate(360deg); }
+        }
+        .avatar-ring {
+          position: relative;
+          width: 5.5rem; /* 88px */
+          height: 5.5rem;
+          border-radius: 9999px;
+          padding: 2px;
+          background: conic-gradient(#8b5cf6, #3b82f6, #8b5cf6);
+          animation: spin-slower 12s linear infinite;
+        }
+        .avatar-cutout {
+          border-radius: 9999px;
+          height: 100%;
+          width: 100%;
+          background: #0b1020;
+          padding: 3px;
+        }
+        .avatar-img {
+          transition: transform 300ms ease;
+        }
+        .avatar-img:hover {
+          transform: scale(1.04);
+        }
+        .avatar-glow {
+          position: absolute;
+          inset: -8px;
+          border-radius: 9999px;
+          background: radial-gradient(60% 60% at 50% 50%, rgba(139,92,246,0.25), rgba(59,130,246,0.0));
+          filter: blur(12px);
+          opacity: 0.8;
+          pointer-events: none;
+        }
       `}</style>
     </div>
-  )
-}
+  );
+};
 
-export default AccountScreen
+export default AccountScreen;
