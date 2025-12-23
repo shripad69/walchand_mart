@@ -22,6 +22,16 @@ app.use('/api/v1',registerRoutes);
 app.use('/api/v1/purchase',purchaseRoutes);
 app.use('/api/v1/found',foundRoutes);
 
+// ---------------- HEALTH ROUTE ----------------
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    server: 'up',
+    timestamp: new Date().toISOString()
+  });
+});
+
+
 
 // START SERVER AND DB
 function startServer() {
