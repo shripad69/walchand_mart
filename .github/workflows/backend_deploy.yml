@@ -50,7 +50,7 @@ jobs:
               git clone -b $BRANCH $REPO_URL .
             else
               git fetch origin
-              git reset $BRANCH
+              git reset --hard $BRANCH
             fi
 
             echo "⚙️ Moving to backend"
