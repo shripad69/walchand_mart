@@ -1,7 +1,7 @@
 const config = {
 
 
-    BASE_URL: "http://walchandmart.shrii.tech:3000",
+    BASE_URL: "http://walchandmart.shrii.tech:4000",
     GET_OTP : "/api/v1/send-otp",
     SIGNUP: "/api/v1/signup",
     LOGIN: "/api/v1/signin",
