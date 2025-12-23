@@ -35,8 +35,8 @@ app.get('/health', (req, res) => {
 
 // START SERVER AND DB
 function startServer() {
-  app.listen(6000, () => {
-    console.log('Server is running on port 6000');
+  app.listen(4000, () => {
+    console.log('Server is running on port 4000');
   });
 }
 
