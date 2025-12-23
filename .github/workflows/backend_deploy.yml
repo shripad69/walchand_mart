@@ -1,50 +1,87 @@
-    - name: Deploy Backend
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.SERVER_IP }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
-          APP_ROOT="/home/azureuser/myapp"
-          REPO_URL="https://github.com/shripad69/walchand_mart"
-          BRANCH="main"
+name: Backend CI/CD
 
-          mkdir -p $APP_ROOT
-          cd $APP_ROOT
+on:
+  push:
+    branches:
+      - main
 
-          # -------- CLONE OR PULL --------
-          if [ ! -d ".git" ]; then
-            git clone -b $BRANCH $REPO_URL .
-          else
-            git pull origin $BRANCH
-          fi
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
 
+    steps:
+      # -------- CHECKOUT (CI) --------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -------- NODE SETUP (CI) --------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      # -------- BUILD CHECK (CI) --------
+      - name: Build Backend (CI)
+        run: |
           cd backend
-
-          # -------- CREATE .env --------
-          cat > .env << EOF
-          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION=${{ secrets.AWS_REGION }}
-          S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}
-          DB_URL=${{ secrets.DB_URL }}
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          JWT_TIMEOUT=${{ secrets.JWT_TIMEOUT }}
-          EMAIL_USER=${{ secrets.EMAIL_USER }}
-          EMAIL_PASS=${{ secrets.EMAIL_PASS }}
-          EOF
-
           npm install
           npm run build
 
-          # -------- CHECK & INSTALL PM2 --------
-          if ! command -v pm2 >/dev/null 2>&1; then
-            echo "PM2 not found. Installing PM2..."
-            npm install -g pm2
-          else
-            echo "PM2 already installed"
-          fi
+      # -------- DEPLOY TO VM --------
+      - name: Deploy Backend
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
 
-          # -------- START / RESTART BACKEND --------
-          pm2 restart backend || pm2 start dist/index.js --name backend
-          pm2 save
+            APP_ROOT="/home/azureuser/myapp"
+            REPO_URL="https://github.com/shripad69/walchand_mart.git"
+            BRANCH="main"
+
+            echo "📁 Preparing app directory"
+            mkdir -p $APP_ROOT
+            cd $APP_ROOT
+
+            echo "📦 Clone or Pull repository"
+            if [ ! -d ".git" ]; then
+              git clone -b $BRANCH $REPO_URL .
+            else
+              git pull origin $BRANCH
+            fi
+
+            echo "⚙️ Moving to backend"
+            cd backend
+
+            echo "🔐 Creating .env file"
+            cat > .env << EOF
+            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            AWS_REGION=${{ secrets.AWS_REGION }}
+            S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}
+            DB_URL=${{ secrets.DB_URL }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_TIMEOUT=${{ secrets.JWT_TIMEOUT }}
+            EMAIL_USER=${{ secrets.EMAIL_USER }}
+            EMAIL_PASS=${{ secrets.EMAIL_PASS }}
+            EOF
+
+            echo "📦 Installing dependencies"
+            npm install
+
+            echo "🏗️ Building backend"
+            npm run build
+
+            echo "🔍 Checking PM2"
+            if ! command -v pm2 >/dev/null 2>&1; then
+              echo "PM2 not found, installing..."
+              npm install -g pm2
+            fi
+
+            echo "🚀 Starting / Restarting backend"
+            pm2 restart backend || pm2 start dist/index.js --name backend
+            pm2 save
+
+            echo "✅ Backend deployed successfully"
