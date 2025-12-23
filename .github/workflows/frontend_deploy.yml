@@ -1,0 +1,72 @@
+name: Frontend CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      # -------- CHECKOUT (CI) --------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -------- NODE SETUP (CI) --------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      # -------- BUILD CHECK (CI) --------
+      - name: Build Frontend (CI)
+        run: |
+          cd frontend
+          npm install
+          npm run build
+
+      # -------- DEPLOY TO VM --------
+      - name: Deploy Frontend
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+
+            APP_ROOT="/home/azureuser/myapp"
+            REPO_URL="https://github.com/shripad69/walchand_mart.git"
+            BRANCH="main"
+            TARGET_DIR="/var/www/walchandmart"
+
+            echo "📁 Preparing app directory"
+            mkdir -p $APP_ROOT
+            cd $APP_ROOT
+
+            echo "📦 Clone or Pull repository"
+            if [ ! -d ".git" ]; then
+              git clone -b $BRANCH $REPO_URL .
+            else
+              git pull origin $BRANCH
+            fi
+
+            echo "🎨 Moving to frontend"
+            cd frontend
+
+            echo "📦 Installing frontend dependencies"
+            npm install
+
+            echo "🏗️ Building frontend"
+            npm run build
+
+            echo "🚀 Deploying frontend to Nginx directory"
+            sudo rm -rf $TARGET_DIR/*
+            sudo cp -r dist/* $TARGET_DIR/
+
+            echo "🔁 Reloading Nginx"
+            sudo systemctl reload nginx
+
+            echo "✅ Frontend deployed successfully"
